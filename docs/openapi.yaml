@@ -1,0 +1,369 @@
+openapi: 3.1.0
+info:
+  title: Book Tracker API
+  version: 1.0.0
+  description: REST API for Book Tracker — books, notes, and reading events.
+
+servers:
+  - url: https://{apiId}.execute-api.{region}.amazonaws.com
+    variables:
+      apiId: {}
+      region: {}
+
+security:
+  - bearerAuth: []
+
+paths:
+  /books:
+    post:
+      operationId: createBook
+      summary: Create a new book
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookCreate'
+      responses:
+        '201':
+          description: Book created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    get:
+      operationId: listBooks
+      summary: List books for the authenticated user
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [SHELF, READING, READ]
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [updatedAt_asc, updatedAt_desc]
+            default: updatedAt_desc
+      responses:
+        '200':
+          description: List of books
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Book'
+                  nextToken:
+                    type: string
+                    nullable: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /books/{id}:
+    parameters:
+      - $ref: '#/components/parameters/BookId'
+    get:
+      operationId: getBook
+      summary: Get a book by ID
+      responses:
+        '200':
+          description: Book
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      operationId: updateBook
+      summary: Update a book
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookUpdate'
+      responses:
+        '200':
+          description: Updated book
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: deleteBook
+      summary: Delete a book (and associated notes and events)
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /books/{id}/notes:
+    parameters:
+      - $ref: '#/components/parameters/BookId'
+    post:
+      operationId: createNote
+      summary: Add a note to a book
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NoteCreate'
+      responses:
+        '201':
+          description: Note created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Note'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: listNotes
+      summary: List notes for a book
+      responses:
+        '200':
+          description: List of notes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Note'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /books/{id}/page:
+    parameters:
+      - $ref: '#/components/parameters/BookId'
+    post:
+      operationId: recordPage
+      summary: Record reading progress (append immutable ReadingEvent, update book currentPage)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PageUpdate'
+      responses:
+        '201':
+          description: Event created and book updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadingEvent'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /books/{id}/events:
+    parameters:
+      - $ref: '#/components/parameters/BookId'
+    get:
+      operationId: listReadingEvents
+      summary: List reading events (timeline) for a book
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: nextToken
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of reading events (oldest or newest first per sort)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ReadingEvent'
+                  nextToken:
+                    type: string
+                    nullable: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Cognito JWT access token
+
+  parameters:
+    BookId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    BadRequest:
+      description: Validation or bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Missing or invalid token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Not allowed to access this resource
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    Book:
+      type: object
+      required: [id, title, status, createdAt, updatedAt, userId]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        status: { type: string, enum: [SHELF, READING, READ] }
+        rating: { type: number, minimum: 1, maximum: 5, nullable: true }
+        currentPage: { type: integer, minimum: 0, nullable: true }
+        totalPages: { type: integer, minimum: 0, nullable: true }
+        price: { type: number, nullable: true }
+        currency: { type: string, nullable: true }
+        store: { type: string, nullable: true }
+        purchaseDate: { type: string, format: date, nullable: true }
+        boughtAt: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        userId: { type: string }
+    BookCreate:
+      type: object
+      required: [title, status]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 500 }
+        description: { type: string, maxLength: 10000, nullable: true }
+        status: { type: string, enum: [SHELF, READING, READ] }
+        rating: { type: number, minimum: 1, maximum: 5, nullable: true }
+        currentPage: { type: integer, minimum: 0, nullable: true }
+        totalPages: { type: integer, minimum: 0, nullable: true }
+        price: { type: number, nullable: true }
+        currency: { type: string, maxLength: 3, nullable: true }
+        store: { type: string, maxLength: 200, nullable: true }
+        purchaseDate: { type: string, format: date, nullable: true }
+        boughtAt: { type: string, maxLength: 200, nullable: true }
+    BookUpdate:
+      type: object
+      properties:
+        title: { type: string, minLength: 1, maxLength: 500 }
+        description: { type: string, maxLength: 10000, nullable: true }
+        status: { type: string, enum: [SHELF, READING, READ] }
+        rating: { type: number, minimum: 1, maximum: 5, nullable: true }
+        currentPage: { type: integer, minimum: 0, nullable: true }
+        totalPages: { type: integer, minimum: 0, nullable: true }
+        price: { type: number, nullable: true }
+        currency: { type: string, maxLength: 3, nullable: true }
+        store: { type: string, maxLength: 200, nullable: true }
+        purchaseDate: { type: string, format: date, nullable: true }
+        boughtAt: { type: string, maxLength: 200, nullable: true }
+    Note:
+      type: object
+      required: [id, bookId, content, createdAt, updatedAt, userId]
+      properties:
+        id: { type: string, format: uuid }
+        bookId: { type: string, format: uuid }
+        content: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        userId: { type: string }
+    NoteCreate:
+      type: object
+      required: [content]
+      properties:
+        content: { type: string, minLength: 1, maxLength: 10000 }
+    PageUpdate:
+      type: object
+      required: [page]
+      properties:
+        page: { type: integer, minimum: 0 }
+    ReadingEvent:
+      type: object
+      required: [id, bookId, page, occurredAt, userId]
+      properties:
+        id: { type: string, format: uuid }
+        bookId: { type: string, format: uuid }
+        page: { type: integer, minimum: 0 }
+        occurredAt: { type: string, format: date-time }
+        userId: { type: string }
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        details: { type: array, items: { type: object }, nullable: true }
