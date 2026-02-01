@@ -77,7 +77,8 @@ For new features and pull requests, follow **[docs/gitflow.md](docs/gitflow.md)*
    npm run dev:api
    ```
 
-   The API runs at **http://localhost:3001**. Leave this terminal open.
+   The API runs at **http://localhost:3001**. Leave this terminal open.  
+   If you pull changes or book cover images don’t show after save, restart the API (`Ctrl+C` then `npm run dev:api` again) so it loads the latest code.
 
 3. **Configure the frontend** to use the local API:
 

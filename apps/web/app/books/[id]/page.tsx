@@ -32,6 +32,10 @@ const STATUS_LABELS: Record<string, string> = {
   READING: "Reading",
   READ: "Read",
 };
+const FORMAT_LABELS: Record<string, string> = {
+  PHYSICAL: "Physical",
+  ELECTRONIC: "Electronic (PDF, EPUB)",
+};
 
 export default function BookDetailPage() {
   const params = useParams();
@@ -47,6 +51,8 @@ export default function BookDetailPage() {
   const [pageValue, setPageValue] = useState("");
   const [error, setError] = useState("");
   const [token, setToken] = useState<string | null>(null);
+  const [imagePreviewError, setImagePreviewError] = useState(false);
+  const [uploadCoverLoading, setUploadCoverLoading] = useState(false);
 
   useEffect(() => {
     if (isLocalApi() || !isConfigured()) {
@@ -81,12 +87,32 @@ export default function BookDetailPage() {
       .finally(() => setLoading(false));
   }, [token, id, router]);
 
+  async function handleCoverUploadEdit(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadCoverLoading(true);
+    setImagePreviewError(false);
+    const formData = new FormData();
+    formData.set("file", file);
+    try {
+      const res = await fetch("/api/upload-cover", { method: "POST", body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Upload failed");
+      setEditForm((f) => ({ ...f, imageUrl: data.url }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploadCoverLoading(false);
+      e.target.value = "";
+    }
+  }
+
   function handleUpdate(e: React.FormEvent) {
     e.preventDefault();
     if (!book) return;
     if (!token && !isLocalApi()) return;
     setError("");
-    updateBook(token ?? null, id, {
+    const payload = {
       title: editForm.title,
       status: editForm.status,
       description: editForm.description ?? undefined,
@@ -98,7 +124,10 @@ export default function BookDetailPage() {
       store: editForm.store ?? undefined,
       purchaseDate: editForm.purchaseDate ?? undefined,
       boughtAt: editForm.boughtAt ?? undefined,
-    }).then((res) => {
+      imageUrl: editForm.imageUrl ?? null,
+      format: editForm.format ?? undefined,
+    };
+    updateBook(token ?? null, id, payload).then((res) => {
       if (res.data) {
         setBook(res.data);
         setEditForm(res.data);
@@ -221,6 +250,89 @@ export default function BookDetailPage() {
                   onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value || null }))}
                 />
               </div>
+              <div className="space-y-3">
+                <Label>Cover image</Label>
+                <p className="text-sm text-muted-foreground">
+                  Paste a link for a preview, or upload an image to store it in the app.
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-imageUrl" className="text-xs">Paste link</Label>
+                    <Input
+                      id="edit-imageUrl"
+                      type="text"
+                      value={editForm.imageUrl ?? ""}
+                      onChange={(e) => {
+                        setEditForm((f) => ({ ...f, imageUrl: e.target.value || null }));
+                        setImagePreviewError(false);
+                      }}
+                      placeholder="https://… (e.g. Amazon, Momox)"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-coverFile" className="text-xs">Or upload from computer</Label>
+                    <Input
+                      id="edit-coverFile"
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      onChange={handleCoverUploadEdit}
+                      disabled={uploadCoverLoading}
+                      className="cursor-pointer"
+                    />
+                    {uploadCoverLoading && <p className="text-xs text-muted-foreground">Uploading…</p>}
+                  </div>
+                </div>
+                {(editForm.imageUrl ?? "") && (
+                  <div className="flex items-start gap-3 rounded-lg border p-3 bg-muted/30">
+                    <div className="h-24 w-16 shrink-0 rounded overflow-hidden bg-muted flex items-center justify-center">
+                      {!imagePreviewError ? (
+                        <img
+                          src={editForm.imageUrl!}
+                          alt=""
+                          referrerPolicy="no-referrer"
+                          className="h-full w-full object-cover"
+                          onLoad={() => setImagePreviewError(false)}
+                          onError={() => setImagePreviewError(true)}
+                        />
+                      ) : (
+                        <span className="text-xs text-destructive px-1 text-center">Link doesn’t load</span>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-muted-foreground">
+                        {imagePreviewError
+                          ? "Preview failed. The link may be invalid or blocked; you can still save."
+                          : "Preview: link works."}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditForm((f) => ({ ...f, imageUrl: null }));
+                          setImagePreviewError(false);
+                        }}
+                        className="text-xs text-muted-foreground underline mt-1"
+                      >
+                        Clear cover
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>Format</Label>
+                <Select
+                  value={editForm.format ?? ""}
+                  onValueChange={(v) => setEditForm((f) => ({ ...f, format: (v || null) as Book["format"] }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Physical or electronic" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="PHYSICAL">{FORMAT_LABELS.PHYSICAL}</SelectItem>
+                    <SelectItem value="ELECTRONIC">{FORMAT_LABELS.ELECTRONIC}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Rating (1–5)</Label>
@@ -322,15 +434,44 @@ export default function BookDetailPage() {
       ) : (
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">{book.title}</CardTitle>
-              <span className="rounded bg-muted px-2 py-0.5 text-sm">
-                {STATUS_LABELS[book.status] ?? book.status}
-              </span>
+            <div className="flex gap-4">
+              {book.imageUrl ? (
+                <img
+                  key={book.imageUrl}
+                  src={book.imageUrl}
+                  alt=""
+                  referrerPolicy="no-referrer"
+                  className="h-32 w-24 shrink-0 rounded object-cover bg-muted"
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                    const placeholder = e.currentTarget.nextElementSibling as HTMLElement;
+                    if (placeholder) placeholder.style.display = "flex";
+                  }}
+                />
+              ) : null}
+              <div
+                className="h-32 w-24 shrink-0 rounded bg-muted flex items-center justify-center"
+                style={book.imageUrl ? { display: "none" } : undefined}
+              >
+                <BookOpen className="h-10 w-10 text-muted-foreground" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="text-lg">{book.title}</CardTitle>
+                  <span className="rounded bg-muted px-2 py-0.5 text-sm shrink-0">
+                    {STATUS_LABELS[book.status] ?? book.status}
+                  </span>
+                </div>
+                {book.format && (
+                  <span className="text-sm text-muted-foreground">
+                    {FORMAT_LABELS[book.format] ?? book.format}
+                  </span>
+                )}
+                {book.description && (
+                  <CardDescription className="whitespace-pre-wrap mt-1">{book.description}</CardDescription>
+                )}
+              </div>
             </div>
-            {book.description && (
-              <CardDescription className="whitespace-pre-wrap">{book.description}</CardDescription>
-            )}
             <div className="flex flex-wrap gap-4 text-sm text-muted-foreground pt-2">
               {book.rating != null && <span>Rating: {book.rating}/5</span>}
               {book.currentPage != null && (

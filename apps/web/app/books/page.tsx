@@ -21,6 +21,10 @@ const STATUS_LABELS: Record<string, string> = {
   READING: "Reading",
   READ: "Read",
 };
+const FORMAT_LABELS: Record<string, string> = {
+  PHYSICAL: "Physical",
+  ELECTRONIC: "Electronic",
+};
 
 export default function BooksPage() {
   const [books, setBooks] = useState<Book[]>([]);
@@ -121,13 +125,34 @@ export default function BooksPage() {
               <Link href={`/books/${book.id}`}>
                 <Card className="h-full transition-colors hover:bg-muted/50">
                   <CardHeader className="pb-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <h2 className="font-semibold leading-tight line-clamp-2">
-                        {book.title}
-                      </h2>
-                      <span className="shrink-0 rounded bg-muted px-2 py-0.5 text-xs">
-                        {STATUS_LABELS[book.status] ?? book.status}
-                      </span>
+                    <div className="flex items-start gap-3">
+                      {book.imageUrl ? (
+                        <img
+                          src={book.imageUrl}
+                          alt=""
+                          referrerPolicy="no-referrer"
+                          className="h-20 w-14 shrink-0 rounded object-cover bg-muted"
+                        />
+                      ) : (
+                        <div className="h-20 w-14 shrink-0 rounded bg-muted flex items-center justify-center">
+                          <BookOpen className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <h2 className="font-semibold leading-tight line-clamp-2">
+                            {book.title}
+                          </h2>
+                          <span className="shrink-0 rounded bg-muted px-2 py-0.5 text-xs">
+                            {STATUS_LABELS[book.status] ?? book.status}
+                          </span>
+                        </div>
+                        {book.format && (
+                          <span className="text-xs text-muted-foreground">
+                            {FORMAT_LABELS[book.format] ?? book.format}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent className="pt-0">

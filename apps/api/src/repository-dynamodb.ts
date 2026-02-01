@@ -36,6 +36,8 @@ function toBook(item: Record<string, unknown>): Book {
     store: (b.store as string | null) ?? null,
     purchaseDate: (b.purchaseDate as string | null) ?? null,
     boughtAt: (b.boughtAt as string | null) ?? null,
+    imageUrl: (b.imageUrl as string | null) ?? null,
+    format: (b.format as Book["format"]) ?? null,
     createdAt: b.createdAt as string,
     updatedAt: b.updatedAt as string,
     userId: b.userId as string,

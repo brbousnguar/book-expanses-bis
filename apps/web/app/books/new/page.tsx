@@ -30,8 +30,32 @@ export default function NewBookPage() {
   const [store, setStore] = useState("");
   const [purchaseDate, setPurchaseDate] = useState("");
   const [boughtAt, setBoughtAt] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [imagePreviewError, setImagePreviewError] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [format, setFormat] = useState<"PHYSICAL" | "ELECTRONIC" | "">("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  async function handleCoverUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setImagePreviewError(false);
+    const formData = new FormData();
+    formData.set("file", file);
+    try {
+      const res = await fetch("/api/upload-cover", { method: "POST", body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Upload failed");
+      setImageUrl(data.url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -50,6 +74,8 @@ export default function NewBookPage() {
       ...(store && { store }),
       ...(purchaseDate && { purchaseDate }),
       ...(boughtAt && { boughtAt }),
+      ...(imageUrl.trim() && { imageUrl: imageUrl.trim() }),
+      ...(format && { format: format as "PHYSICAL" | "ELECTRONIC" }),
     })
       .then((res) => {
         if (res.error) {
@@ -106,6 +132,83 @@ export default function NewBookPage() {
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Summary or notes"
               />
+            </div>
+            <div className="space-y-3">
+              <Label>Cover image</Label>
+              <p className="text-sm text-muted-foreground">
+                Paste a link for a preview, or upload an image to store it in the app.
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="imageUrl" className="text-xs">Paste link</Label>
+                  <Input
+                    id="imageUrl"
+                    type="text"
+                    value={imageUrl}
+                    onChange={(e) => {
+                      setImageUrl(e.target.value);
+                      setImagePreviewError(false);
+                    }}
+                    placeholder="https://… (e.g. Amazon, Momox)"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="coverFile" className="text-xs">Or upload from computer</Label>
+                  <Input
+                    id="coverFile"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    onChange={handleCoverUpload}
+                    disabled={uploading}
+                    className="cursor-pointer"
+                  />
+                  {uploading && <p className="text-xs text-muted-foreground">Uploading…</p>}
+                </div>
+              </div>
+              {imageUrl && (
+                <div className="flex items-start gap-3 rounded-lg border p-3 bg-muted/30">
+                  <div className="h-24 w-16 shrink-0 rounded overflow-hidden bg-muted flex items-center justify-center">
+                    {!imagePreviewError ? (
+                      <img
+                        src={imageUrl}
+                        alt=""
+                        referrerPolicy="no-referrer"
+                        className="h-full w-full object-cover"
+                        onLoad={() => setImagePreviewError(false)}
+                        onError={() => setImagePreviewError(true)}
+                      />
+                    ) : (
+                      <span className="text-xs text-destructive px-1 text-center">Link doesn’t load</span>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-muted-foreground">
+                      {imagePreviewError
+                        ? "Preview failed. The link may be invalid or blocked; you can still save and try on the book page."
+                        : "Preview: link works."}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => { setImageUrl(""); setImagePreviewError(false); }}
+                      className="text-xs text-muted-foreground underline mt-1"
+                    >
+                      Clear cover
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="format">Format</Label>
+              <Select value={format || undefined} onValueChange={(v) => setFormat(v as "PHYSICAL" | "ELECTRONIC" | "")}>
+                <SelectTrigger id="format">
+                  <SelectValue placeholder="Physical or electronic" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PHYSICAL">Physical</SelectItem>
+                  <SelectItem value="ELECTRONIC">Electronic (PDF, EPUB)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
