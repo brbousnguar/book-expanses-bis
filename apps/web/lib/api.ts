@@ -45,7 +45,7 @@ async function request<T>(
 
 export async function createBook(
   token: string | null,
-  body: { title: string; status: string; description?: string; rating?: number; currentPage?: number; totalPages?: number; price?: number; currency?: string; store?: string; purchaseDate?: string; boughtAt?: string }
+  body: { title: string; status: string; description?: string; rating?: number; currentPage?: number; totalPages?: number; price?: number; currency?: string; store?: string; purchaseDate?: string; boughtAt?: string; imageUrl?: string | null; format?: string | null }
 ): Promise<{ data?: Book; status: number; error?: { code: string; message: string } }> {
   return request<Book>("/books", { method: "POST", body, token });
 }
@@ -71,7 +71,7 @@ export async function getBook(
 export async function updateBook(
   token: string | null,
   id: string,
-  body: Partial<{ title: string; status: string; description: string; rating: number; currentPage: number; totalPages: number; price: number; currency: string; store: string; purchaseDate: string; boughtAt: string }>
+  body: Partial<{ title: string; status: string; description: string; rating: number; currentPage: number; totalPages: number; price: number; currency: string; store: string; purchaseDate: string; boughtAt: string; imageUrl: string | null; format: string | null }>
 ): Promise<{ data?: Book; status: number; error?: { code: string; message: string } }> {
   return request<Book>(`/books/${id}`, { method: "PATCH", body, token });
 }

@@ -2,7 +2,7 @@
  * Entity types (align with docs/spec.md and docs/openapi.yaml).
  */
 
-import type { BookStatus } from "./schemas.js";
+import type { BookStatus, BookFormat } from "./schemas.js";
 
 export interface Book {
   id: string;
@@ -17,6 +17,8 @@ export interface Book {
   store: string | null;
   purchaseDate: string | null;
   boughtAt: string | null;
+  imageUrl: string | null;
+  format: BookFormat | null;
   createdAt: string;
   updatedAt: string;
   userId: string;

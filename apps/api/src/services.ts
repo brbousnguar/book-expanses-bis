@@ -24,6 +24,8 @@ export async function createBook(userId: string, input: BookCreateInput): Promis
     store: input.store ?? null,
     purchaseDate: input.purchaseDate ?? null,
     boughtAt: input.boughtAt ?? null,
+    imageUrl: input.imageUrl ?? null,
+    format: input.format ?? null,
     createdAt: now,
     updatedAt: now,
   };
@@ -60,6 +62,8 @@ export async function updateBook(
   if (input.store !== undefined) updates.store = input.store;
   if (input.purchaseDate !== undefined) updates.purchaseDate = input.purchaseDate;
   if (input.boughtAt !== undefined) updates.boughtAt = input.boughtAt;
+  if (input.imageUrl !== undefined) updates.imageUrl = input.imageUrl;
+  if (input.format !== undefined) updates.format = input.format;
   if (Object.keys(updates).length === 0) return repo.getBook(userId, bookId);
   return repo.updateBook(userId, bookId, updates);
 }

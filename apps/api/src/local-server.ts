@@ -107,7 +107,7 @@ app.listen(PORT, () => {
   console.log(
     JSON.stringify({
       level: "info",
-      message: "Local API server running",
+      message: "Local API server running (imageUrl/format supported)",
       port: PORT,
       localUserId: LOCAL_USER_ID,
       localDev: process.env.LOCAL_DEV,

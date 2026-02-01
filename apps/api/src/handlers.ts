@@ -23,6 +23,16 @@ function handleZodError(e: ZodError): { code: string; message: string; details: 
   return { code: "VALIDATION_ERROR", message: "Validation failed", details };
 }
 
+/** Ensures imageUrl and format are always present in JSON (never undefined). */
+function withBookFields<T extends Record<string, unknown>>(book: T): T {
+  const b = book as { imageUrl?: string | null; format?: string | null };
+  return {
+    ...book,
+    imageUrl: b.imageUrl !== undefined && b.imageUrl !== null ? b.imageUrl : null,
+    format: b.format !== undefined && b.format !== null ? b.format : null,
+  } as T;
+}
+
 export async function createBook(event: { body?: string; requestContext?: unknown }): Promise<{ statusCode: number; headers: Record<string, string>; body: string }> {
   const userId = getUserId(event as Parameters<typeof getUserId>[0]);
   if (!userId) {
@@ -38,7 +48,8 @@ export async function createBook(event: { body?: string; requestContext?: unknow
   try {
     const book = await services.createBook(userId, parsed.data);
     log("info", "createBook: created", { bookId: book.id });
-    return jsonResponse(201, book);
+    const payload = { ...book, imageUrl: (parsed.data as { imageUrl?: string | null }).imageUrl ?? (book as { imageUrl?: string | null }).imageUrl ?? null, format: (parsed.data as { format?: string | null }).format ?? (book as { format?: string | null }).format ?? null };
+    return jsonResponse(201, withBookFields(payload));
   } catch (err) {
     log("error", "createBook: error", { err: String(err) });
     return jsonResponse(500, errorResponse("INTERNAL_ERROR", "Internal server error"));
@@ -54,7 +65,8 @@ export async function listBooks(event: { queryStringParameters?: Record<string, 
   const sort = event.queryStringParameters?.sort ?? "updatedAt_desc";
   try {
     const result = await services.listBooks(userId, { status, sort });
-    return jsonResponse(200, result);
+    const items = result.items.map((b) => withBookFields(b));
+    return jsonResponse(200, { items });
   } catch (err) {
     log("error", "listBooks: error", { err: String(err) });
     return jsonResponse(500, errorResponse("INTERNAL_ERROR", "Internal server error"));
@@ -74,7 +86,7 @@ export async function getBook(event: { pathParameters?: Record<string, string> |
   if (!book) {
     return jsonResponse(404, errorResponse("NOT_FOUND", "Book not found"));
   }
-  return jsonResponse(200, book);
+  return jsonResponse(200, withBookFields(book));
 }
 
 export async function updateBook(event: { pathParameters?: Record<string, string> | null; body?: string; requestContext?: unknown }): Promise<{ statusCode: number; headers: Record<string, string>; body: string }> {
@@ -95,7 +107,7 @@ export async function updateBook(event: { pathParameters?: Record<string, string
   if (!book) {
     return jsonResponse(404, errorResponse("NOT_FOUND", "Book not found"));
   }
-  return jsonResponse(200, book);
+  return jsonResponse(200, withBookFields(book));
 }
 
 export async function deleteBook(event: { pathParameters?: Record<string, string> | null; requestContext?: unknown }): Promise<{ statusCode: number; headers: Record<string, string>; body: string }> {
