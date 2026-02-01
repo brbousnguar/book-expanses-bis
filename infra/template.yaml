@@ -1,0 +1,194 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Book Tracker — API Gateway HTTP API, Lambda, DynamoDB, Cognito
+
+Parameters:
+  Stage:
+    Type: String
+    Default: dev
+    Description: Stage name (dev, staging, prod)
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 256
+    Runtime: nodejs20.x
+    Architectures:
+      - arm64
+
+Resources:
+  BookTrackerTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "BookTrackerTable-${Stage}"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+
+  CognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub "book-tracker-${Stage}"
+      AutoVerifiedAttributes:
+        - email
+      UsernameAttributes:
+        - email
+      Schema:
+        - Name: email
+          Required: true
+          Mutable: true
+        - Name: name
+          Required: false
+          Mutable: true
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireUppercase: true
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+
+  CognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref CognitoUserPool
+      ClientName: !Sub "book-tracker-web-${Stage}"
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_SRP_AUTH
+      SupportedIdentityProviders:
+        - COGNITO
+      AccessTokenValidity: 1
+      IdTokenValidity: 1
+      RefreshTokenValidity: 30
+      TokenValidityUnits:
+        AccessToken: hours
+        IdToken: hours
+        RefreshToken: days
+
+  BookTrackerApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      Name: !Sub "book-tracker-api-${Stage}"
+      Auth:
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !GetAtt CognitoUserPool.Arn
+            Identity:
+              Header: Authorization
+        DefaultAuthorizer: CognitoAuthorizer
+      CorsConfiguration:
+        AllowOrigins:
+          - "https://*.amplifyapp.com"
+          - "http://localhost:3000"
+        AllowMethods:
+          - GET
+          - POST
+          - PATCH
+          - DELETE
+          - OPTIONS
+        AllowHeaders:
+          - Content-Type
+          - Authorization
+        MaxAge: 300
+
+  BookTrackerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "book-tracker-api-${Stage}"
+      CodeUri: ../apps/api
+      Handler: dist/index.handler
+      Description: Book Tracker API (operationIds: createBook, listBooks, getBook, updateBook, deleteBook, createNote, listNotes, recordPage, listReadingEvents)
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref BookTrackerTable
+      Events:
+        ApiRoot:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref BookTrackerApi
+            Path: /books
+            Method: GET
+        ApiRootPost:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref BookTrackerApi
+            Path: /books
+            Method: POST
+        ApiBook:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref BookTrackerApi
+            Path: /books/{id}
+            Method: GET
+        ApiBookPatch:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref BookTrackerApi
+            Path: /books/{id}
+            Method: PATCH
+        ApiBookDelete:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref BookTrackerApi
+            Path: /books/{id}
+            Method: DELETE
+        ApiNotes:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref BookTrackerApi
+            Path: /books/{id}/notes
+            Method: GET
+        ApiNotesPost:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref BookTrackerApi
+            Path: /books/{id}/notes
+            Method: POST
+        ApiPage:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref BookTrackerApi
+            Path: /books/{id}/page
+            Method: POST
+        ApiEvents:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref BookTrackerApi
+            Path: /books/{id}/events
+            Method: GET
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref BookTrackerTable
+
+Outputs:
+  ApiUrl:
+    Description: API Gateway HTTP API URL
+    Value: !Sub "https://${BookTrackerApi}.execute-api.${AWS::Region}.amazonaws.com"
+    Export:
+      Name: !Sub "${AWS::StackName}-ApiUrl"
+  UserPoolId:
+    Description: Cognito User Pool ID
+    Value: !Ref CognitoUserPool
+    Export:
+      Name: !Sub "${AWS::StackName}-UserPoolId"
+  UserPoolClientId:
+    Description: Cognito User Pool Client ID
+    Value: !Ref CognitoUserPoolClient
+    Export:
+      Name: !Sub "${AWS::StackName}-UserPoolClientId"
+  TableName:
+    Description: DynamoDB Table Name
+    Value: !Ref BookTrackerTable
+    Export:
+      Name: !Sub "${AWS::StackName}-TableName"

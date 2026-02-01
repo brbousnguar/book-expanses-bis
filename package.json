@@ -1,0 +1,20 @@
+{
+  "name": "book-tracker",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w packages/types && npm run build -w apps/api && npm run build -w apps/web",
+    "dev:web": "npm run dev -w apps/web",
+    "dev:api": "npm run start:local -w apps/api",
+    "start:api": "npm run start:local -w apps/api",
+    "test": "npm run test --workspaces --if-present",
+    "test:local-api": "node scripts/test-local-api.mjs",
+    "lint": "npm run lint --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
