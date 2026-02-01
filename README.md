@@ -4,6 +4,17 @@ Production-quality, multi-tenant web app for tracking books, reading progress, n
 
 ---
 
+## Git flow (features and PRs)
+
+For new features and pull requests, follow **[docs/gitflow.md](docs/gitflow.md)**:
+
+- Create a feature branch: `feat/what-i-implement` from `main`
+- Before commit: `git pull --rebase origin main`
+- Commit: `feat: short description`
+- Push and open a PR into `main`
+
+---
+
 ## Repo structure
 
 ```
