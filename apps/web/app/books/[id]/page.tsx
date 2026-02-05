@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Progress } from "@/components/ui/progress";
 import {
   getBook,
   updateBook,
@@ -472,22 +473,35 @@ export default function BookDetailPage() {
                 )}
               </div>
             </div>
-            <div className="flex flex-wrap gap-4 text-sm text-muted-foreground pt-2">
-              {book.rating != null && <span>Rating: {book.rating}/5</span>}
-              {book.currentPage != null && (
-                <span>
-                  Page {book.currentPage}
-                  {book.totalPages != null ? ` / ${book.totalPages}` : ""}
-                </span>
+            <div className="space-y-3 pt-2">
+              <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                {book.rating != null && <span>Rating: {book.rating}/5</span>}
+                {book.price != null && (
+                  <span>
+                    {book.currency ?? ""} {book.price}
+                  </span>
+                )}
+                {book.store && <span>Store: {book.store}</span>}
+                {book.purchaseDate && <span>Purchased: {book.purchaseDate}</span>}
+                {book.boughtAt && <span>Bought at: {book.boughtAt}</span>}
+              </div>
+              {book.currentPage != null && book.totalPages != null && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      Page {book.currentPage} / {book.totalPages}
+                    </span>
+                    <span className="font-medium text-primary">
+                      {Math.round((book.currentPage / book.totalPages) * 100)}%
+                    </span>
+                  </div>
+                  <Progress
+                    value={book.currentPage}
+                    max={book.totalPages}
+                    className="h-2.5"
+                  />
+                </div>
               )}
-              {book.price != null && (
-                <span>
-                  {book.currency ?? ""} {book.price}
-                </span>
-              )}
-              {book.store && <span>Store: {book.store}</span>}
-              {book.purchaseDate && <span>Purchased: {book.purchaseDate}</span>}
-              {book.boughtAt && <span>Bought at: {book.boughtAt}</span>}
             </div>
           </CardHeader>
         </Card>
