@@ -1,0 +1,29 @@
+version: "3.8"
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./:/app:cached
+      - /app/node_modules
+    environment:
+      - LOCAL_DEV=1
+      - LOCAL_USER_ID=local-dev-user
+    ports:
+      - "3001:3001"
+    command: sh -c "npm run build -w packages/types && npm run dev:api"
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./:/app:cached
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    command: npm run dev:web
+    depends_on:
+      - api
